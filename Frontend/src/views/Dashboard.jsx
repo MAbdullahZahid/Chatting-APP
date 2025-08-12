@@ -1,20 +1,46 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext"; // adjust path accordingly
+import axios from "axios";
 
 const Dashboard = () => {
-  const { socket, userId } = useAuth();  // get socket and userId from context
+  const { socket, userId } = useAuth(); // get socket and userId from context
 
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
 
+ 
 
+
+useEffect(() => {
+  if (!userId) return;
+
+  axios
+    .get(`http://localhost:3000/api/chats/contacts/${userId}`)
+    .then((res) => {
+       console.log("Backend raw response:", res.data);
+   
+      if (Array.isArray(res.data)) {
+        setContacts(res.data);
+      } else {
+        setContacts([]);
+      }
+    })
+    .catch((err) => {
+      console.error("Error fetching contacts:", err);
+      setContacts([]);
+    });
+}, [userId, contacts]);
+
+
+  // Listen for incoming messages
   useEffect(() => {
     if (!socket) {
-        console.log("socket not found");
-        
-        return;}
+      console.log("socket not found");
+      return;
+    }
 
     const handleReceiveMessage = (data) => {
       setMessages((prev) => [...prev, data]);
@@ -43,7 +69,7 @@ const Dashboard = () => {
   };
 
   return (
-   <div
+    <div
       style={{
         padding: "30px",
         maxWidth: "400px",
@@ -53,13 +79,13 @@ const Dashboard = () => {
     >
       <h1>Welcome to your chats</h1>
 
-     
+      {/* Contacts List */}
+    
 
 
       <button
         onClick={() => {
           setShowNewChat((prev) => !prev);
-          setActiveChat(null);
         }}
         style={{
           padding: "8px 15px",
@@ -74,7 +100,6 @@ const Dashboard = () => {
         New Chat
       </button>
 
-      {/* New Chat Form */}
       {showNewChat && (
         <div>
           <input
@@ -119,34 +144,23 @@ const Dashboard = () => {
           >
             Send
           </button>
-            </div>
+        </div>
       )}
 
-      <div
-        style={{
-          borderTop: "1px solid #ccc",
-          paddingTop: "15px",
-          maxHeight: "300px",
-          overflowY: "auto",
-        }}
-      >
-        <h3>Messages</h3>
-        {messages.length === 0 && <p>No messages yet.</p>}
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              marginBottom: "10px",
-              padding: "8px",
-              backgroundColor: "#f1f1f1",
-              borderRadius: "5px",
-            }}
-          >
-            <strong>From: {msg.from}</strong>
-            <p>{msg.message}</p>
-          </div>
-        ))}
+
+<div>
+  <h3>Your Contacts</h3>
+  {contacts.length === 0 ? (
+    <p>No contacts yet.</p>
+  ) : (
+    contacts.map((contact, idx) => (
+      <div key={idx}>
+        <strong>{contact.phoneNo}</strong>
       </div>
+    ))
+  )}
+</div>
+    
     </div>
   );
 };
