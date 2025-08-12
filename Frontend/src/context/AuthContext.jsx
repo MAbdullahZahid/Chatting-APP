@@ -124,7 +124,7 @@ useEffect(() => {
 
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userId, socketId, login, logout, loading,
+    <AuthContext.Provider value={{ isAuthenticated, userId, socketId ,login, logout, loading,
       socket: socketRef.current,
      }}>
       {children}

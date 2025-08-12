@@ -7,6 +7,8 @@ const Dashboard = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState([]);
+  const [showNewChat, setShowNewChat] = useState(false);
+
 
   useEffect(() => {
     if (!socket) {
@@ -51,52 +53,74 @@ const Dashboard = () => {
     >
       <h1>Welcome to your chats</h1>
 
-      <input
-        type="text"
-        placeholder="Enter phone number"
-        value={phoneNumber}
-        onChange={(e) => setPhoneNumber(e.target.value)}
-        style={{
-          padding: "10px",
-          width: "100%",
-          marginBottom: "10px",
-          borderRadius: "5px",
-          border: "1px solid #ccc",
-          fontSize: "16px",
-        }}
-      />
+     
 
-      <textarea
-        placeholder="Enter message"
-        value={messageText}
-        onChange={(e) => setMessageText(e.target.value)}
-        rows={4}
-        style={{
-          padding: "10px",
-          width: "100%",
-          marginBottom: "10px",
-          borderRadius: "5px",
-          border: "1px solid #ccc",
-          fontSize: "16px",
-          resize: "none",
-        }}
-      />
 
       <button
-        onClick={handleSend}
+        onClick={() => {
+          setShowNewChat((prev) => !prev);
+          setActiveChat(null);
+        }}
         style={{
-          padding: "10px 20px",
+          padding: "8px 15px",
+          marginBottom: "15px",
           backgroundColor: "#4CAF50",
           color: "#fff",
           border: "none",
           borderRadius: "5px",
           cursor: "pointer",
-          fontSize: "16px",
-          marginBottom: "20px",
         }}
       >
-        Send
+        New Chat
       </button>
+
+      {/* New Chat Form */}
+      {showNewChat && (
+        <div>
+          <input
+            type="text"
+            placeholder="Enter phone number"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            style={{
+              padding: "10px",
+              width: "100%",
+              marginBottom: "10px",
+              borderRadius: "5px",
+              border: "1px solid #ccc",
+              fontSize: "16px",
+            }}
+          />
+          <textarea
+            placeholder="Enter message"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            rows={4}
+            style={{
+              padding: "10px",
+              width: "100%",
+              marginBottom: "10px",
+              borderRadius: "5px",
+              border: "1px solid #ccc",
+              fontSize: "16px",
+              resize: "none",
+            }}
+          />
+          <button
+            onClick={handleSend}
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#2196F3",
+              color: "#fff",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Send
+          </button>
+            </div>
+      )}
 
       <div
         style={{
