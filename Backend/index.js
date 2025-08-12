@@ -73,76 +73,59 @@ io.on("connection", (socket) => {
     }
   });
 
-  // socket.on("sendMessage", async ({ senderId, receiverPhone, message }) => {
-  //   try {
-  //     console.log("gotten date", senderId, "receiverPhone", receiverPhone, "message", message)
-  //     const sender = await User.findById(senderId).select("username");
-  //     const receiver = await User.findOne({ phoneNo: receiverPhone }).select("_id username");
-
-  //     if (!receiver) {
-  //       socket.emit("error", { message: "Receiver not found" });
-  //       return;
-  //     }
 
 
-
-
-
-  //     const user = connectedUsers.find(u => u.userId === receiver._id.toString());
-  //     if (user) {
-  //       io.to(user.socketId).emit("receiveMessage", {
-  //         from: sender ? sender.username : "Unknown",
-  //         message,
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error("Error in sendMessage:", error);
-  //   }
-  // });
-socket.on("sendMessage", async ({ senderId, receiverPhone, message }) => {
+socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
   try {
-    console.log("Received message request:", senderId, receiverPhone, message);
-
-    const sender = await User.findById(senderId).select("username");
-    const receiver = await User.findOne({ phoneNo: receiverPhone }).select("_id username");
-
-    if (!receiver) {
-      socket.emit("error", { message: "Receiver not found" });
+    if (!chatId || !messageText || !senderId) {
+      socket.emit("error", { message: "chatId, messageText, and senderId are required" });
       return;
     }
 
-    // 1. Find or create chat between sender and receiver
-    let chat = await Chat.findOne({
-      $or: [
-        { senderId, receiverId: receiver._id },
-        { senderId: receiver._id, receiverId: senderId }
-      ]
-    });
+    // Find chat
+    const chat = await Chat.findById(chatId);
 
     if (!chat) {
-      chat = await Chat.create({
-        senderId,
-        receiverId: receiver._id
-      });
+      socket.emit("error", { message: "Chat not found" });
+      return;
     }
 
-    // 2. Create message
+    // Optional: Check sender is part of this chat
+    if (![chat.senderId.toString(), chat.receiverId.toString()].includes(senderId)) {
+      socket.emit("error", { message: "Sender not part of this chat" });
+      return;
+    }
+
+    // Create new message with the actual sender
     const newMessage = await Message.create({
-      chatId: chat._id,
+      chatId,
       senderId,
-      messageText: message
+      messageText,
     });
 
-    // 3. Update chat with last message reference (optional)
+    // Update chat
     chat.messageId = newMessage._id;
+    chat.chatTime = new Date();
     await chat.save();
 
-    console.log("Message stored in DB:", newMessage);
+    // Get sender's username for notification
+    const sender = await User.findById(senderId).select("username");
+
+    io.emit("newMessage", {
+      _id: newMessage._id,
+      chatId,
+      senderId,
+      senderUsername: sender.username,
+      messageText,
+      createdAt: newMessage.createdAt,
+    });
 
   } catch (error) {
     console.error("Error in sendMessage:", error);
+    socket.emit("error", { message: "Failed to send message" });
   }
 });
+
 
   socket.on("disconnect", () => {
     console.log("User disconnected");

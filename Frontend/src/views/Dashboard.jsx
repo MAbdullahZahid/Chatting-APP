@@ -77,8 +77,8 @@ useEffect(() => {
 };
 
  const handleLogout = () => {
-    logout();              // Clear auth tokens and disconnect socket
-    navigate("/auth/login"); // Redirect to login page
+    logout();              
+    navigate("/auth/login");
   };
 
 
