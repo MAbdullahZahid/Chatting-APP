@@ -166,3 +166,4 @@ createAllSchemas();
 app.use("/api", signupRoutes);
 app.use("/api", loginRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api/messages", require("./routes/messageRoutes"));

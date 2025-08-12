@@ -5,15 +5,19 @@ exports.getUserContacts = async (req, res) => {
   try {
     const { userId } = req.params;
 
+    // Find all chats where user is sender or receiver
     const chats = await Chat.find({
       $or: [{ senderId: userId }, { receiverId: userId }]
+    }).populate('senderId', 'phoneNo').populate('receiverId', 'phoneNo');
+
+    // For each chat, find the other user and prepare result with chatId and phoneNo
+    const contacts = chats.map(chat => {
+      const otherUser = chat.senderId._id.toString() === userId ? chat.receiverId : chat.senderId;
+      return {
+        chatId: chat._id.toString(),
+        phoneNo: otherUser.phoneNo
+      };
     });
-
-    const ids = [...new Set(
-      chats.map(c => c.senderId.toString() === userId ? c.receiverId : c.senderId)
-    )];
-
-    const contacts = await User.find({ _id: { $in: ids } }, "phoneNo");
 
     res.json(contacts);
   } catch (err) {

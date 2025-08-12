@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext"; // adjust path accordingly
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { socket, userId } = useAuth(); // get socket and userId from context
-
+   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState([]);
@@ -32,7 +33,7 @@ useEffect(() => {
       console.error("Error fetching contacts:", err);
       setContacts([]);
     });
-}, [userId, contacts]);
+}, [userId]);
 
 
   // Listen for incoming messages
@@ -67,6 +68,12 @@ useEffect(() => {
 
     setMessageText("");
   };
+
+ const handleContactClick = (chatId) => {
+  console.log("ChatID", chatId)
+  navigate(`/user/chat?chatId=${encodeURIComponent(chatId)}`);
+};
+
 
   return (
     <div
@@ -149,17 +156,22 @@ useEffect(() => {
 
 
 <div>
-  <h3>Your Contacts</h3>
+  <h3>Your Chats</h3>
   {contacts.length === 0 ? (
-    <p>No contacts yet.</p>
-  ) : (
-    contacts.map((contact, idx) => (
-      <div key={idx}>
-        <strong>{contact.phoneNo}</strong>
-      </div>
-    ))
-  )}
+  <p>No Chat yet.</p>
+) : (
+  contacts.map((contact, idx) => (
+    <div
+      key={idx}
+      onClick={() => handleContactClick(contact.chatId)}  // use chatId here
+      style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
+    >
+      <strong>{contact.phoneNo}</strong>  {/* display phone number */}
+    </div>
+  ))
+)}
 </div>
+
     
     </div>
   );
