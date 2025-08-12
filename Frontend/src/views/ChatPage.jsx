@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
-  const [messageText, setMessageText] = useState("");
+
+
 const ChatPage = () => {
   const { userId } = useAuth();
   const [messages, setMessages] = useState([]);
   const [chatId, setChatId] = useState("");
+  const [messageText, setMessageText] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -31,7 +33,7 @@ const ChatPage = () => {
 
   const handleSend = () => {
     if ( !messageText.trim()) {
-      alert("Please enter message");
+      alert("Please enter both phone number and message");
       return;
     }
 
@@ -71,9 +73,14 @@ const ChatPage = () => {
           </div>
         ))
       )}
-      <input type="text" name="" id="" value={messageText}  onChange={(e) => setMessageText(e.target.value)} /> 
-         
-      <button onClick={handleSend}>Send Message</button>
+    <input
+  type="text"
+  value={messageText}
+  onChange={(e) => setMessageText(e.target.value)}
+/>
+<button onClick={handleSend}>Send Message</button>
+
+    
     </div>
   );
 };

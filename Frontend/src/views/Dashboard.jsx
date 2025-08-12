@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext"; // adjust path accordingly
+import { useAuth } from "../context/AuthContext"; 
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+
 
 const Dashboard = () => {
   const { socket, userId } = useAuth(); // get socket and userId from context
@@ -11,8 +12,42 @@ const Dashboard = () => {
   const [messages, setMessages] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
+  const { logout } = useAuth();
 
  
+
+const [filterText, setFilterText] = useState("");
+const [allContacts, setallContacts] = useState("");
+
+const filteredContacts = Array.isArray(allContacts)
+  ? allContacts.filter(contact =>
+      contact.phoneNo && contact.phoneNo.toLowerCase().includes(filterText.toLowerCase())
+    )
+  : [];
+
+
+
+
+useEffect(() => {
+  if (!userId) return;
+
+ 
+   axios.get(`http://localhost:3000/api/contacts/${userId}`)
+
+    .then((res) => {
+       console.log("Backend raw All Contacts response:", res.data);
+   
+      if (Array.isArray(res.data)) {
+        setallContacts(res.data);
+      } else {
+        setallContacts([]);
+      }
+    })
+    .catch((err) => {
+      console.error("Error fetching contacts:", err);
+      setallContacts([]);
+    });
+}, [userId]);
 
 
 useEffect(() => {
@@ -34,45 +69,17 @@ useEffect(() => {
       setContacts([]);
     });
 }, [userId]);
-
-
-  // Listen for incoming messages
-  useEffect(() => {
-    if (!socket) {
-      console.log("socket not found");
-      return;
-    }
-
-    const handleReceiveMessage = (data) => {
-      setMessages((prev) => [...prev, data]);
-    };
-
-    socket.on("receiveMessage", handleReceiveMessage);
-
-    return () => {
-      socket.off("receiveMessage", handleReceiveMessage);
-    };
-  }, [socket]);
-
-  const handleSend = () => {
-    if (!phoneNumber.trim() || !messageText.trim()) {
-      alert("Please enter both phone number and message");
-      return;
-    }
-
-    socket.emit("sendMessage", {
-      senderId: userId,
-      receiverPhone: phoneNumber,
-      message: messageText,
-    });
-
-    setMessageText("");
-  };
+  
 
  const handleContactClick = (chatId) => {
   console.log("ChatID", chatId)
   navigate(`/user/chat?chatId=${encodeURIComponent(chatId)}`);
 };
+
+ const handleLogout = () => {
+    logout();              // Clear auth tokens and disconnect socket
+    navigate("/auth/login"); // Redirect to login page
+  };
 
 
   return (
@@ -87,7 +94,22 @@ useEffect(() => {
       <h1>Welcome to your chats</h1>
 
       {/* Contacts List */}
-    
+  
+ <button
+      onClick={handleLogout}
+      style={{
+        padding: "8px 15px",
+        marginBottom: "15px",
+        marginRight: "10px",
+        backgroundColor: "#4CAF50",
+        color: "#fff",
+        border: "none",
+        borderRadius: "5px",
+        cursor: "pointer",
+      }}
+    >
+      Logout
+    </button>
 
 
       <button
@@ -108,50 +130,40 @@ useEffect(() => {
       </button>
 
       {showNewChat && (
-        <div>
-          <input
-            type="text"
-            placeholder="Enter phone number"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            style={{
-              padding: "10px",
-              width: "100%",
-              marginBottom: "10px",
-              borderRadius: "5px",
-              border: "1px solid #ccc",
-              fontSize: "16px",
-            }}
-          />
-          <textarea
-            placeholder="Enter message"
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            rows={4}
-            style={{
-              padding: "10px",
-              width: "100%",
-              marginBottom: "10px",
-              borderRadius: "5px",
-              border: "1px solid #ccc",
-              fontSize: "16px",
-              resize: "none",
-            }}
-          />
-          <button
-            onClick={handleSend}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#2196F3",
-              color: "#fff",
-              border: "none",
-              borderRadius: "5px",
-              cursor: "pointer",
-            }}
-          >
-            Send
-          </button>
-        </div>
+       
+        <div style={{ marginTop: "20px" }}>
+  <input
+    type="text"
+    placeholder="Search contacts..."
+    value={filterText}
+    onChange={(e) => setFilterText(e.target.value)}
+    style={{
+      padding: "8px",
+      width: "100%",
+      marginBottom: "10px",
+      borderRadius: "5px",
+      border: "1px solid #ccc",
+      fontSize: "16px",
+    }}
+  />
+  
+  {filteredContacts.length > 0 ? (
+  filteredContacts.map((contact, idx) => (
+    <div
+      key={idx}
+      onClick={() => handleContactClick(contact.chatId)}
+      style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
+    >
+      <strong>{contact.phoneNo}</strong>  {/* contact is an object, show phoneNo */}
+    </div>
+  ))
+) : (
+  <p>No contact found.</p>
+)}
+
+
+</div>
+
       )}
 
 

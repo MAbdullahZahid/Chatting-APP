@@ -9,6 +9,7 @@ const cors = require("cors");
 const signupRoutes = require("./routes/signupRoute");
 const loginRoutes = require("./routes/loginRoute");
 const chatRoutes = require("./routes/chatRoutes");
+const allContacts = require("./routes/allContactsRoutes");
 
 
 
@@ -166,4 +167,6 @@ createAllSchemas();
 app.use("/api", signupRoutes);
 app.use("/api", loginRoutes);
 app.use("/api/chats", chatRoutes);
+app.use("/api", allContacts);
 app.use("/api/messages", require("./routes/messageRoutes"));
+
