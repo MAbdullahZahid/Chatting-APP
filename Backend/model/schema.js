@@ -77,6 +77,10 @@ const messageSchema = new mongoose.Schema({
   messageText: {
     type: String,
     required: [true, "Message cannot be empty"]
+  },
+    isRead: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

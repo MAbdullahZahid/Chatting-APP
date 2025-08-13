@@ -14,6 +14,7 @@ const allContacts = require("./routes/allContactsRoutes");
 
 
 
+
 const port = process.env.PORT || 3000;
 
 const app = express();
@@ -72,6 +73,37 @@ io.on("connection", (socket) => {
       console.error("Error in userJoined:", error);
     }
   });
+
+  io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+socket.on("markMessagesRead", async ({ chatId, userId }) => {
+  try {
+    // Update all unread messages from the other user
+    await Message.updateMany(
+      { chatId, senderId: { $ne: userId }, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    // Find who sent these messages
+    const messages = await Message.find({ chatId, senderId: { $ne: userId } }).limit(1);
+
+    if (messages.length > 0) {
+      const senderId = messages[0].senderId.toString();
+
+      // Find sender's socketId from connectedUsers
+      const senderSocket = connectedUsers.find(u => u.userId.toString() === senderId);
+
+      if (senderSocket) {
+        io.to(senderSocket.socketId).emit("messagesRead", { chatId });
+      }
+    }
+  } catch (err) {
+    console.error("Error marking messages as read:", err);
+  }
+});
+
+});
 
 
 
@@ -152,4 +184,5 @@ app.use("/api", loginRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api", allContacts);
 app.use("/api/messages", require("./routes/messageRoutes"));
+
 

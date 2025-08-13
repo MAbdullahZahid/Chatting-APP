@@ -44,10 +44,33 @@ const ChatPage = () => {
       }
     });
 
+socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
+  if (updatedChatId === chatIdFromUrl) {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.senderId === userId ? { ...msg, isRead: true } : msg
+      )
+    );
+  }
+});
+
+
     return () => {
       socket?.off("newMessage");
+      socket?.off("messagesRead");
     };
   }, [socket, userId]);
+
+
+  useEffect(() => {
+  if (socket && chatId && userId) {
+    socket.emit("markMessagesRead", { chatId, userId });
+  }
+}, [socket, chatId, userId, messages]);
+
+
+
+
 
   const handleSend = () => {
     if (!messageText.trim()) return alert("Please enter a message");
@@ -69,26 +92,51 @@ const ChatPage = () => {
       {messages.length === 0 ? (
         <p>No messages yet.</p>
       ) : (
+        // messages.map((msg, idx) => (
+        //   <div
+        //     key={idx}
+        //     style={{
+        //       textAlign: msg.senderId === userId ? "right" : "left",
+        //       margin: "5px 0",
+        //     }}
+        //   >
+        //     <span
+        //       style={{
+        //         backgroundColor: msg.senderId === userId ? "#DCF8C6" : "#EAEAEA",
+        //         padding: "8px",
+        //         borderRadius: "5px",
+        //         display: "inline-block",
+        //       }}
+        //     >
+        //       {msg.messageText}
+        //     </span>
+        //   </div>
+        // ))
         messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              textAlign: msg.senderId === userId ? "right" : "left",
-              margin: "5px 0",
-            }}
-          >
-            <span
-              style={{
-                backgroundColor: msg.senderId === userId ? "#DCF8C6" : "#EAEAEA",
-                padding: "8px",
-                borderRadius: "5px",
-                display: "inline-block",
-              }}
-            >
-              {msg.messageText}
-            </span>
-          </div>
-        ))
+  <div
+    key={idx}
+    style={{
+      textAlign: msg.senderId === userId ? "right" : "left",
+      margin: "5px 0",
+    }}
+  >
+    <span
+      style={{
+        backgroundColor: msg.senderId === userId ? "#DCF8C6" : "#EAEAEA",
+        padding: "8px",
+        borderRadius: "5px",
+        display: "inline-block",
+      }}
+    >
+      {msg.messageText}
+      {msg.senderId === userId && (
+        <span style={{ marginLeft: 5, fontSize: "12px" }}>
+          {msg.isRead ? "✅✅" : "✅"}
+        </span>
+      )}
+    </span>
+  </div>
+))
       )}
 
       <input
