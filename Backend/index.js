@@ -42,6 +42,7 @@ io.on("connection", (socket) => {
   console.log("New WebSocket connection");
 
   socket.on("userJoined", async (userId) => {
+    socket.userId = userId; 
     try {
       const user = await User.findById(userId).select("username phoneNo");
       await User.findByIdAndUpdate(userId, { status: "online" }, { new: true });
@@ -124,7 +125,7 @@ if (currentSocket) {
       io.to(otherSocket.socketId).emit("messagesRead", { chatId });
     }
 
-    console.log(`Messages in chat ${chatId} marked as read by ${userId}`);
+  
   } catch (err) {
     console.error("Error marking messages as read:", err);
   }
@@ -284,6 +285,49 @@ socket.on("sendVoiceMessage", async ({ chatId, senderId, voiceMessage }) => {
 });
 
 
+socket.on("deleteMessage", async ({ messageId, chatId }) => {
+  try {
+    if (!messageId || !chatId) return;
+
+    // Ensure the socket has userId
+    if (!socket.userId) {
+      console.log("Socket missing userId");
+      return;
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      console.log("Message not found:", messageId);
+      return;
+    }
+
+    // Only allow the sender to delete their own message
+    if (message.senderId.toString() !== socket.userId) {
+      console.log("Unauthorized delete attempt by", socket.userId);
+      return;
+    }
+
+    // Delete from DB
+    await Message.findByIdAndDelete(messageId);
+    console.log("Message deleted from DB:", messageId);
+
+    // Notify all chat participants
+    const chat = await Chat.findById(chatId);
+    if (!chat) return;
+
+    const users = [chat.senderId.toString(), chat.receiverId.toString()];
+    users.forEach((userId) => {
+      const userSocket = connectedUsers.find(u => u.userId === userId);
+      if (userSocket) {
+        io.to(userSocket.socketId).emit("messageDeleted", { messageId });
+      }
+    });
+
+  } catch (err) {
+    console.error("Error deleting message:", err);
+    socket.emit("error", { message: "Failed to delete message" });
+  }
+});
 
 
   socket.on("disconnect", async () => {

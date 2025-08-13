@@ -1,6 +1,7 @@
 import React, { useEffect, useState , useRef} from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const ChatPage = () => {
   const { socket, userId } = useAuth();
@@ -33,6 +34,21 @@ const startRecording = async () => {
   setIsRecording(true);
 };
 
+const handleDeleteMessage = (messageId) => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "This will delete your message for everyone!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, delete it!",
+    cancelButtonText: "Cancel",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      socket.emit("deleteMessage", { messageId, chatId });
+    }
+  });
+};
+
 
 const stopRecording = () => {
   if (mediaRecorderRef.current) {
@@ -57,6 +73,18 @@ useEffect(() => {
   };
 }, [socket, chatId]);
 
+
+useEffect(() => {
+  if (!socket) return;
+
+  const handleMessageDeleted = ({ messageId }) => {
+    setMessages(prev => prev.filter(m => m._id !== messageId));
+  };
+
+  socket.on("messageDeleted", handleMessageDeleted);
+
+  return () => socket.off("messageDeleted", handleMessageDeleted);
+}, [socket]);
 
 
 
@@ -136,11 +164,7 @@ socket.emit("markMessagesRead", { chatId, userId });
     <div style={{ padding: "20px" }}>
       <h2>Chat with {chatPartner || "..."}</h2>
 
-      {messages.length === 0 ? (
-        <p>No messages yet.</p>
-      ) : (
-       
-        messages.map((msg, idx) => (
+{messages.map((msg, idx) => (
   <div
     key={idx}
     style={{
@@ -154,6 +178,7 @@ socket.emit("markMessagesRead", { chatId, userId });
         padding: "8px",
         borderRadius: "5px",
         display: "inline-block",
+        position: "relative"
       }}
     >
       {msg.messageText}
@@ -163,15 +188,36 @@ socket.emit("markMessagesRead", { chatId, userId });
         </span>
       )}
       {msg.voiceMessage && (
-  <div>
-    <audio controls src={`data:audio/webm;base64,${msg.voiceMessage}`} />
-  </div>
-)}
+        <div>
+          <audio controls src={`data:audio/webm;base64,${msg.voiceMessage}`} />
+        </div>
+      )}
 
+      {/* Delete button only for user's own message */}
+      {msg.senderId === userId && (
+        <button
+          onClick={() => handleDeleteMessage(msg._id)}
+          style={{
+            marginLeft: "8px",
+            backgroundColor: "red",
+            color: "white",
+            border: "none",
+            borderRadius: "3px",
+            cursor: "pointer",
+            padding: "2px 5px",
+            fontSize: "10px",
+            position: "absolute",
+            top: "-5px",
+            right: "-5px"
+          }}
+        >
+          Delete
+        </button>
+      )}
     </span>
   </div>
-))
-      )}
+))}
+
 
       <input
         type="text"
