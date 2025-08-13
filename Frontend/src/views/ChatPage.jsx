@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState , useRef} from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 
@@ -8,6 +8,57 @@ const ChatPage = () => {
   const [chatId, setChatId] = useState("");
   const [messageText, setMessageText] = useState("");
   const [chatPartner, setChatPartner] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+const mediaRecorderRef = useRef(null);
+const chunksRef = useRef([]);
+
+const startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaRecorderRef.current = new MediaRecorder(stream);
+  chunksRef.current = [];
+
+  mediaRecorderRef.current.ondataavailable = (e) => chunksRef.current.push(e.data);
+
+  mediaRecorderRef.current.onstop = () => {
+    const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64Audio = reader.result.split(",")[1];
+      socket.emit("sendVoiceMessage", { chatId, senderId: userId, voiceMessage: base64Audio });
+    };
+    reader.readAsDataURL(blob);
+  };
+
+  mediaRecorderRef.current.start();
+  setIsRecording(true);
+};
+
+
+const stopRecording = () => {
+  if (mediaRecorderRef.current) {
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+  }
+};
+
+useEffect(() => {
+  if (!socket) return;
+
+  const handleVM = (vm) => {
+    if (vm.chatId === chatId) {
+      setMessages((prev) => [...prev, vm]);
+    }
+  };
+
+  socket.on("newVoiceMessage", handleVM);
+
+  return () => {
+    socket.off("newVoiceMessage", handleVM);
+  };
+}, [socket, chatId]);
+
+
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -62,15 +113,10 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
   }, [socket, userId]);
 
 
-  useEffect(() => {
-  if (socket && chatId && userId) {
-    socket.emit("markMessagesRead", { chatId, userId });
-  }
-}, [socket, chatId, userId]);
 
 
 
-
+socket.emit("markMessagesRead", { chatId, userId });
 
   const handleSend = () => {
     if (!messageText.trim()) return alert("Please enter a message");
@@ -86,6 +132,7 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
   };
 
   return (
+    
     <div style={{ padding: "20px" }}>
       <h2>Chat with {chatPartner || "..."}</h2>
 
@@ -115,6 +162,12 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
           {msg.isRead ? "✅✅" : "✅"}
         </span>
       )}
+      {msg.voiceMessage && (
+  <div>
+    <audio controls src={`data:audio/webm;base64,${msg.voiceMessage}`} />
+  </div>
+)}
+
     </span>
   </div>
 ))
@@ -131,6 +184,10 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
     }
   }}
       />
+      <button onClick={isRecording ? stopRecording : startRecording}>
+  {isRecording ? "Stop Recording" : "Record Voice"}
+</button>
+
       <button onClick={handleSend}>Send Message</button>
     </div>
   );

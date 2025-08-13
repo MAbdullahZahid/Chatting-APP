@@ -220,6 +220,72 @@ if (senderSocket) {
   }
 });
 
+socket.on("sendVoiceMessage", async ({ chatId, senderId, voiceMessage }) => {
+  try {
+    if (!chatId || !senderId || !voiceMessage) {
+      socket.emit("error", { message: "chatId, senderId and voiceMessage are required" });
+      return;
+    }
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      socket.emit("error", { message: "Chat not found" });
+      return;
+    }
+
+    // Make sure sender is part of chat
+    if (![chat.senderId.toString(), chat.receiverId.toString()].includes(senderId)) {
+      socket.emit("error", { message: "Sender not part of this chat" });
+      return;
+    }
+
+    // Create message with voiceMessage
+    const newMessage = await Message.create({
+      chatId,
+      senderId,
+      voiceMessage
+    });
+
+    // Update unread count
+    if (senderId === chat.senderId.toString()) {
+      chat.unreadMessages.receiver += 1;
+    } else {
+      chat.unreadMessages.sender += 1;
+    }
+
+    chat.messageId = newMessage._id;
+    chat.chatTime = new Date();
+    await chat.save();
+
+    // Emit to receiver
+    const receiverId =
+      senderId === chat.senderId.toString() ? chat.receiverId.toString() : chat.senderId.toString();
+    const receiverSocket = connectedUsers.find(u => u.userId === receiverId);
+    if (receiverSocket) {
+      io.to(receiverSocket.socketId).emit("contactsUpdate", {
+        chatId: chat._id.toString(),
+        unreadMessages:
+          senderId === chat.senderId.toString()
+            ? chat.unreadMessages.receiver
+            : chat.unreadMessages.sender
+      });
+    }
+
+    // Emit VM to both sender and receiver
+    io.to(socket.id).emit("newVoiceMessage", newMessage);
+    if (receiverSocket) {
+      io.to(receiverSocket.socketId).emit("newVoiceMessage", newMessage);
+    }
+
+  } catch (err) {
+    console.error("Error sending voice message:", err);
+    socket.emit("error", { message: "Failed to send voice message" });
+  }
+});
+
+
+
+
   socket.on("disconnect", async () => {
   const disconnectedUser = connectedUsers.find(u => u.socketId === socket.id);
   if (disconnectedUser) {
@@ -235,6 +301,7 @@ if (senderSocket) {
     });
   }
 });
+
 
 });
 
@@ -258,5 +325,3 @@ app.use("/api", loginRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api", allContacts);
 app.use("/api/messages", require("./routes/messageRoutes"));
-
-

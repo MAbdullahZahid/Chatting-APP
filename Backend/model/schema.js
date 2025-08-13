@@ -69,8 +69,8 @@ const chatSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// 3. Message Schema
-// inside model/schema.js (update messageSchema)
+
+
 const messageSchema = new mongoose.Schema({
   chatId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -84,18 +84,25 @@ const messageSchema = new mongoose.Schema({
   },
   messageText: {
     type: String,
-    required: [true, "Message cannot be empty"]
+    trim: true,
   },
-  voiceMessage: {
-    type: String, 
-    default: null // can store Base64 or file URL
+  voiceMessage: { // new field for VM
+    type: String, // store Base64 string
   },
-    isRead: {
+  isRead: {
     type: Boolean,
     default: false
   }
 }, { timestamps: true });
 
+// Custom validator to require at least text or voice
+messageSchema.pre("validate", function(next) {
+  if (!this.messageText && !this.voiceMessage) {
+    next(new Error("Message cannot be empty"));
+  } else {
+    next();
+  }
+});
 
 const createAllSchemas = async () => {
   try {

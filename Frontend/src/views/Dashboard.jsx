@@ -28,20 +28,19 @@ const filteredContacts = Array.isArray(allContacts)
 useEffect(() => {
   if (!socket) return;
 
-  // Receive all users snapshot (optional, for new client)
-  socket.on("allUserStatuses", (users) => {
-    setContacts(users); // set initial contacts
-  });
-
-  // Update status in real-time
+  // Listen to any status change
   socket.on("userStatusUpdate", ({ userId, status }) => {
     setContacts(prev =>
-      prev.map(c => c.userId === userId ? { ...c, status } : c)
+      prev.map(contact =>
+        contact.userId === userId ? { ...contact, status } : contact
+      )
     );
   });
 
+  // Optionally request initial statuses when component mounts
+  socket.emit("requestAllUserStatuses");
+
   return () => {
-    socket.off("allUserStatuses");
     socket.off("userStatusUpdate");
   };
 }, [socket]);
@@ -133,6 +132,7 @@ const handleNewChatClick = async (phoneNo) => {
 
 
  const handleLogout = () => {
+  socket.off("userStatusUpdate");
     logout();              
     navigate("/auth/login");
   };

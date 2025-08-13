@@ -20,6 +20,7 @@ exports.getMessagesByChatId = async (req, res) => {
       _id: msg._id,
       chatId: msg.chatId,
       messageText: msg.messageText,
+      voiceMessage: msg.voiceMessage,
       senderId: msg.senderId._id,
       senderName: msg.senderId.name,
       senderPhoneNo: msg.senderId.phoneNo,
