@@ -36,7 +36,7 @@ const io = new Server(server, {
   },
 });
 
-const connectedUsers = [];
+let connectedUsers = [];
 
 io.on("connection", (socket) => {
   console.log("New WebSocket connection");
@@ -44,6 +44,8 @@ io.on("connection", (socket) => {
   socket.on("userJoined", async (userId) => {
     try {
       const user = await User.findById(userId).select("username phoneNo");
+      await User.findByIdAndUpdate(userId, { status: "online" }, { new: true });
+    
       if (!user) {
         console.log(`User with ID ${userId} not found`);
         return;
@@ -67,6 +69,7 @@ io.on("connection", (socket) => {
       }
 
       io.emit("broadcast", { message: `${username} has joined` });
+      io.emit("userStatusUpdate", { userId, status: "online" });
 
       console.log("Connected users:", connectedUsers);
     } catch (error) {
@@ -127,8 +130,8 @@ if (currentSocket) {
   }
 });
 
-
 socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
+  console.log("Inside Socket First")
   try {
     if (!chatId || !messageText || !senderId) {
       socket.emit("error", { message: "chatId, messageText, and senderId are required" });
@@ -156,7 +159,7 @@ socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
       messageText,
     });
 
-   
+   console.log("Inside Send Message Socket")
    
   if (senderId === chat.senderId.toString()) {
   chat.unreadMessages.receiver += 1; 
@@ -217,10 +220,22 @@ if (senderSocket) {
   }
 });
 
+  socket.on("disconnect", async () => {
+  const disconnectedUser = connectedUsers.find(u => u.socketId === socket.id);
+  if (disconnectedUser) {
+    await User.findByIdAndUpdate(disconnectedUser.userId, { status: "offline" });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
-  });
+   
+    connectedUsers = connectedUsers.filter(u => u.socketId !== socket.id);
+
+   
+    io.emit("userStatusUpdate", {
+      userId: disconnectedUser.userId,
+      status: "offline"
+    });
+  }
+});
+
 });
 
 

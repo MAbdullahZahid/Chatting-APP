@@ -66,7 +66,7 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
   if (socket && chatId && userId) {
     socket.emit("markMessagesRead", { chatId, userId });
   }
-}, [socket, chatId, userId, messages]);
+}, [socket, chatId, userId]);
 
 
 

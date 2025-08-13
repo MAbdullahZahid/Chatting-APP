@@ -36,7 +36,8 @@ const userSchema = new mongoose.Schema({
   about: {
     type: String,
     trim: true
-  }
+  },
+   status: { type: String, enum: ["online", "offline"], default: "offline" },
 }, { timestamps: true });
 
 // 2. Chat Schema
@@ -84,6 +85,10 @@ const messageSchema = new mongoose.Schema({
   messageText: {
     type: String,
     required: [true, "Message cannot be empty"]
+  },
+  voiceMessage: {
+    type: String, 
+    default: null // can store Base64 or file URL
   },
     isRead: {
     type: Boolean,

@@ -25,6 +25,26 @@ const filteredContacts = Array.isArray(allContacts)
     )
   : [];
 
+useEffect(() => {
+  if (!socket) return;
+
+  // Receive all users snapshot (optional, for new client)
+  socket.on("allUserStatuses", (users) => {
+    setContacts(users); // set initial contacts
+  });
+
+  // Update status in real-time
+  socket.on("userStatusUpdate", ({ userId, status }) => {
+    setContacts(prev =>
+      prev.map(c => c.userId === userId ? { ...c, status } : c)
+    );
+  });
+
+  return () => {
+    socket.off("allUserStatuses");
+    socket.off("userStatusUpdate");
+  };
+}, [socket]);
 
 
 
@@ -217,6 +237,7 @@ const handleNewChatClick = async (phoneNo) => {
       <br />
       <strong>{contact.phoneNo}</strong>  
       <p>{contact.unreadMessages}</p>
+      <p>{contact.status === "online" ? "🟢 Online" : "🔴 Offline"}</p>
     </div>
   ))
 )}
