@@ -3,249 +3,530 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-
 const Dashboard = () => {
-  const { socket, userId } = useAuth(); // get socket and userId from context
-   const navigate = useNavigate();
+  const { socket, userId, logout } = useAuth();
+  const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageText, setMessageText] = useState("");
   const [messages, setMessages] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
-  const { logout } = useAuth();
+  const [filterText, setFilterText] = useState("");
+  const [allContacts, setAllContacts] = useState([]);
 
- 
-
-const [filterText, setFilterText] = useState("");
-const [allContacts, setallContacts] = useState("");
-
-const filteredContacts = Array.isArray(allContacts)
-  ? allContacts.filter(contact =>
-      contact.phoneNo && contact.phoneNo.toLowerCase().includes(filterText.toLowerCase())
-    )
-  : [];
-
-useEffect(() => {
-  if (!socket) return;
-
-  // Listen to any status change
-  socket.on("userStatusUpdate", ({ userId, status }) => {
-    setContacts(prev =>
-      prev.map(contact =>
-        contact.userId === userId ? { ...contact, status } : contact
+  const filteredContacts = Array.isArray(allContacts)
+    ? allContacts.filter(contact =>
+        contact.phoneNo && contact.phoneNo.toLowerCase().includes(filterText.toLowerCase())
       )
-    );
-  });
+    : [];
 
-  // Optionally request initial statuses when component mounts
-  socket.emit("requestAllUserStatuses");
+  useEffect(() => {
+    if (!socket) return;
 
-  return () => {
-    socket.off("userStatusUpdate");
-  };
-}, [socket]);
-
-
-
-useEffect(() => {
-  if (!userId) return;
-
- 
-   axios.get(`http://localhost:3000/api/contacts/${userId}`)
-
-    .then((res) => {
-       console.log("Backend raw All Contacts response:", res.data);
-   
-      if (Array.isArray(res.data)) {
-        setallContacts(res.data);
-      } else {
-        setallContacts([]);
-      }
-    })
-    .catch((err) => {
-      console.error("Error fetching contacts:", err);
-      setallContacts([]);
+    socket.on("userStatusUpdate", ({ userId, status }) => {
+      setContacts(prev =>
+        prev.map(contact =>
+          contact.userId === userId ? { ...contact, status } : contact
+        )
+      );
     });
-}, [userId]);
 
+    socket.emit("requestAllUserStatuses");
 
-useEffect(() => {
-  if (!userId) return;
+    return () => {
+      socket.off("userStatusUpdate");
+    };
+  }, [socket]);
 
-  axios
-    .get(`http://localhost:3000/api/chats/contacts/${userId}`)
-    .then((res) => {
-    
-   
-      if (Array.isArray(res.data)) {
-        console.log("Conatcts: " , res.data)
-        setContacts(res.data);
-      } else {
+  useEffect(() => {
+    if (!userId) return;
+
+    axios.get(`http://localhost:3000/api/contacts/${userId}`)
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setAllContacts(res.data);
+        } else {
+          setAllContacts([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching contacts:", err);
+        setAllContacts([]);
+      });
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    axios.get(`http://localhost:3000/api/chats/contacts/${userId}`)
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setContacts(res.data);
+        } else {
+          setContacts([]);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching contacts:", err);
         setContacts([]);
-      }
-    })
-    .catch((err) => {
-      console.error("Error fetching contacts:", err);
-      setContacts([]);
-    });
-}, [userId]);
+      });
+  }, [userId]);
   
-useEffect(() => {
-  if (!socket) return;
+  useEffect(() => {
+    if (!socket) return;
 
-  socket.on("contactsUpdate", ({ chatId, unreadMessages }) => {
-    setContacts(prevContacts =>
-      prevContacts.map(contact =>
-        contact.chatId === chatId
-          ? { ...contact, unreadMessages }
-          : contact
-      )
-    );
-  });
-
-  return () => {
-    socket.off("contactsUpdate");
-  };
-}, [socket]);
-
- const handleContactClick = (chatId) => {
-  console.log("ChatID", chatId)
-  navigate(`/user/chat?chatId=${encodeURIComponent(chatId)}`);
-};
-
-const handleNewChatClick = async (phoneNo) => {
-  try {
-    const res = await axios.post("http://localhost:3000/api/chats/find-or-create", {
-      userId,
-      phoneNo
+    socket.on("contactsUpdate", ({ chatId, unreadMessages }) => {
+      setContacts(prevContacts =>
+        prevContacts.map(contact =>
+          contact.chatId === chatId
+            ? { ...contact, unreadMessages }
+            : contact
+        )
+      );
     });
 
-    if (res.data && res.data.chatId) {
-      navigate(`/user/chat?chatId=${encodeURIComponent(res.data.chatId)}`);
-    } else {
-      console.error("No chatId returned from server");
+    return () => {
+      socket.off("contactsUpdate");
+    };
+  }, [socket]);
+
+  const handleContactClick = (chatId) => {
+    navigate(`/user/chat?chatId=${encodeURIComponent(chatId)}`);
+  };
+
+  const handleNewChatClick = async (phoneNo) => {
+    try {
+      const res = await axios.post("http://localhost:3000/api/chats/find-or-create", {
+        userId,
+        phoneNo
+      });
+
+      if (res.data && res.data.chatId) {
+        navigate(`/user/chat?chatId=${encodeURIComponent(res.data.chatId)}`);
+      } else {
+        console.error("No chatId returned from server");
+      }
+    } catch (err) {
+      console.error("Error starting chat:", err);
     }
-  } catch (err) {
-    console.error("Error starting chat:", err);
-  }
-};
+  };
 
-
- const handleLogout = () => {
-  socket.off("userStatusUpdate");
+  const handleLogout = () => {
+    if (socket) socket.off("userStatusUpdate");
     logout();              
     navigate("/auth/login");
   };
 
-
   return (
-    <div
-      style={{
-        padding: "30px",
-        maxWidth: "400px",
-        margin: "auto",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <h1>Welcome to your chats</h1>
-
-      {/* Contacts List */}
-  
- <button
-      onClick={handleLogout}
-      style={{
-        padding: "8px 15px",
-        marginBottom: "15px",
-        marginRight: "10px",
-        backgroundColor: "#4CAF50",
-        color: "#fff",
-        border: "none",
-        borderRadius: "5px",
-        cursor: "pointer",
-      }}
-    >
-      Logout
-    </button>
-
-
-      <button
-        onClick={() => {
-          setShowNewChat((prev) => !prev);
-        }}
-        style={{
-          padding: "8px 15px",
-          marginBottom: "15px",
-          backgroundColor: "#4CAF50",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: "pointer",
-        }}
-      >
-        New Chat
-      </button>
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h1 className="dashboard-title">Chats</h1>
+        <div className="dashboard-actions">
+          <button className="btn new-chat-btn" onClick={() => setShowNewChat(prev => !prev)}>
+            <i className="fas fa-plus"></i> New Chat
+          </button>
+          <button className="btn logout-btn" onClick={handleLogout}>
+            <i className="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </div>
 
       {showNewChat && (
-       
-        <div style={{ marginTop: "20px" }}>
-  <input
-    type="text"
-    placeholder="Search contacts..."
-    value={filterText}
-    onChange={(e) => setFilterText(e.target.value)}
-    style={{
-      padding: "8px",
-      width: "100%",
-      marginBottom: "10px",
-      borderRadius: "5px",
-      border: "1px solid #ccc",
-      fontSize: "16px",
-    }}
-  />
-{filteredContacts.length > 0 ? (
-  filteredContacts.map((contact, idx) => (
-    <div
-      key={idx}
-      onClick={() => handleNewChatClick(contact.phoneNo)}
-      style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
-    >
-      <strong>{contact.phoneNo}</strong>
-    </div>
-  ))
-) : (
-  <p>No contact found.</p>
-)}
-
-
-</div>
-
+        <div className="new-chat-modal">
+          <div className="search-container">
+            <i className="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              placeholder="Search contacts..."
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="search-input"
+            />
+          </div>
+          
+          <div className="contacts-list">
+            {filteredContacts.length > 0 ? (
+              filteredContacts.map((contact, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => handleNewChatClick(contact.phoneNo)}
+                  className="contact-item"
+                >
+                  <div className="contact-avatar">
+                    <i className="fas fa-user"></i>
+                  </div>
+                  <div className="contact-info">
+                    <span className="contact-name">{contact.phoneNo}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="no-contacts">
+                <i className="fas fa-user-friends"></i>
+                <p>No contacts found</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
-
-<div>
-  <h3>Your Chats</h3>
-  {contacts.length === 0 ? (
-  <p>No Chat yet.</p>
-) : (
-  contacts.map((contact, idx) => (
-    <div
-      key={idx}
-      onClick={() => handleContactClick(contact.chatId)}  // use chatId here
-      style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
-    >
-      <strong>{contact.name}</strong>
-      <br />
-      <strong>{contact.phoneNo}</strong>  
-      <p>{contact.unreadMessages}</p>
-      <p>{contact.status === "online" ? "🟢 Online" : "🔴 Offline"}</p>
-    </div>
-  ))
-)}
-</div>
-
-    
+      <div className="chats-container">
+        <h3 className="chats-title">Recent Chats</h3>
+        {contacts.length === 0 ? (
+          <div className="no-chats">
+            <i className="fas fa-comment-alt"></i>
+            <p>No chats yet</p>
+            <button className="btn start-chat-btn" onClick={() => setShowNewChat(true)}>
+              Start a new chat
+            </button>
+          </div>
+        ) : (
+          <div className="chats-list">
+            {contacts.map((contact, idx) => (
+              <div
+                key={idx}
+                onClick={() => handleContactClick(contact.chatId)}
+                className="chat-item"
+              >
+                <div className="chat-avatar">
+                  <i className="fas fa-user"></i>
+                  {contact.status === "online" && <span className="online-badge"></span>}
+                </div>
+                <div className="chat-info">
+                  <div className="chat-header">
+                    <span className="chat-name">{contact.name || contact.phoneNo}</span>
+                    <span className="chat-time">{contact.lastMessageTime || ""}</span>
+                  </div>
+                  <div className="chat-preview">
+                    <p className="chat-last-message">
+                      {contact.lastMessage || "No messages yet"}
+                    </p>
+                    {contact.unreadMessages > 0 && (
+                      <span className="unread-badge">{contact.unreadMessages}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default Dashboard;
+
+// CSS (should be in a separate file or styled-components)
+const styles = `
+.dashboard-container {
+  max-width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f5f5f5;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #075e54;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.dashboard-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.new-chat-btn {
+  background-color: #128c7e;
+  color: white;
+}
+
+.logout-btn {
+  background-color: #ece5dd;
+  color: #075e54;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.new-chat-modal {
+  background-color: white;
+  margin: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.search-container {
+  position: relative;
+  padding: 10px 15px;
+  background-color: #f0f2f5;
+}
+
+.search-icon {
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #667781;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 15px 8px 35px;
+  border: none;
+  border-radius: 20px;
+  background-color: white;
+  font-size: 14px;
+}
+
+.contacts-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.contact-item:hover {
+  background-color: #f5f5f5;
+}
+
+.contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #dfe6e9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  color: #555;
+}
+
+.contact-info {
+  flex: 1;
+}
+
+.contact-name {
+  font-weight: 500;
+}
+
+.no-contacts, .no-chats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  color: #667781;
+}
+
+.no-contacts i, .no-chats i {
+  font-size: 50px;
+  margin-bottom: 15px;
+  color: #ddd;
+}
+
+.chats-container {
+  flex: 1;
+  background-color: white;
+  margin: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.chats-title {
+  padding: 15px;
+  margin: 0;
+  font-size: 18px;
+  color: #075e54;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.chats-list {
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.chat-item {
+  display: flex;
+  padding: 12px 15px;
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.chat-item:hover {
+  background-color: #f5f5f5;
+}
+
+.chat-avatar {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #dfe6e9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  color: #555;
+}
+
+.online-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #4ad504;
+  border: 2px solid white;
+}
+
+.chat-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.chat-name {
+  font-weight: 500;
+}
+
+.chat-time {
+  font-size: 12px;
+  color: #667781;
+}
+
+.chat-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-last-message {
+  margin: 0;
+  font-size: 14px;
+  color: #667781;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.unread-badge {
+  background-color: #25d366;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.start-chat-btn {
+  margin-top: 15px;
+  background-color: #075e54;
+  color: white;
+  padding: 10px 20px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 10px 15px;
+  }
+  
+  .dashboard-title {
+    font-size: 20px;
+  }
+  
+  .btn {
+    padding: 6px 12px;
+    font-size: 14px;
+  border-radius: 18px;
+  }
+  
+  .chat-last-message {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-header {
+    padding: 8px 10px;
+  }
+  
+  .dashboard-title {
+    font-size: 18px;
+  }
+  
+  .btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .chat-item {
+    padding: 10px;
+  }
+  
+  .chat-avatar {
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
+  }
+  
+  .chat-last-message {
+    max-width: 120px;
+    font-size: 13px;
+  }
+}
+`;
+
+// Add styles to the document
+const styleElement = document.createElement("style");
+styleElement.innerHTML = styles;
+document.head.appendChild(styleElement);
