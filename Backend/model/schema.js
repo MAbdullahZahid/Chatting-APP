@@ -38,6 +38,7 @@ const userSchema = new mongoose.Schema({
     trim: true
   },
    status: { type: String, enum: ["online", "offline"], default: "offline" },
+  
 }, { timestamps: true });
 
 // 2. Chat Schema
