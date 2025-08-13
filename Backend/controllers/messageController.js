@@ -14,9 +14,20 @@ exports.getMessagesByChatId = async (req, res) => {
 
     const messages = await Message.find({ chatId: new mongoose.Types.ObjectId(chatId) })
       .sort({ createdAt: 1 }) // oldest first
-      .populate("senderId", "name username phoneNo"); // optional: populate sender details
+      .populate("senderId", "name phoneNo"); // optional: populate sender details
 
-    res.json(messages);
+   const formattedMessages = messages.map(msg => ({
+      _id: msg._id,
+      chatId: msg.chatId,
+      messageText: msg.messageText,
+      senderId: msg.senderId._id,
+      senderName: msg.senderId.name,
+      senderPhoneNo: msg.senderId.phoneNo,
+      createdAt: msg.createdAt,
+      updatedAt: msg.updatedAt
+    }));
+
+    res.json(formattedMessages);
   } catch (err) {
     console.error("Error fetching messages by chatId:", err);
     res.status(500).json({ message: "Server error" });

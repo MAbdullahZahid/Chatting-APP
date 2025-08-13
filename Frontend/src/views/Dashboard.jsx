@@ -59,6 +59,7 @@ useEffect(() => {
        console.log("Backend raw response:", res.data);
    
       if (Array.isArray(res.data)) {
+        console.log("Conatcts: " , res.data)
         setContacts(res.data);
       } else {
         setContacts([]);
@@ -178,6 +179,8 @@ useEffect(() => {
       onClick={() => handleContactClick(contact.chatId)}  // use chatId here
       style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
     >
+      <strong>{contact.name}</strong>
+      <br />
       <strong>{contact.phoneNo}</strong>  {/* display phone number */}
     </div>
   ))

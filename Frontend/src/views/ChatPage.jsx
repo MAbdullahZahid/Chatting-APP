@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import io from "socket.io-client";
 import axios from "axios";
 
-const socket = io("http://localhost:5000"); // Connect to your backend socket.io server
-
 const ChatPage = () => {
-  const { userId } = useAuth();
+  const { socket, userId } = useAuth();
   const [messages, setMessages] = useState([]);
   const [chatId, setChatId] = useState("");
   const [messageText, setMessageText] = useState("");
-  
+  const [chatPartner, setChatPartner] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -20,71 +17,46 @@ const ChatPage = () => {
     if (chatIdFromUrl) {
       axios
         .get("http://localhost:3000/api/messages/chat-by-chatid", {
-          params: {
-            chatId: chatIdFromUrl,
-          },
+          params: { chatId: chatIdFromUrl },
         })
         .then((res) => {
+          console.log("Messages from backend:", res.data);
           setMessages(res.data);
+
+        
+          if (res.data.length > 0) {
+            const otherMsg = res.data.find((m) => m.senderId !== userId);
+            if (otherMsg) {
+              setChatPartner(otherMsg.senderName);
+            } else {
+              setChatPartner(res.data[0].senderName);
+            }
+          }
         })
         .catch((err) => {
           console.error("Error fetching chat:", err);
         });
     }
 
-    // Listen to new incoming messages via socket (optional)
-   socket.on("newMessage", (newMessage) => {
-  if (newMessage.chatId === chatIdFromUrl) {
-    setMessages((prev) => [...prev, newMessage]);
-  }
-});
-
+    socket?.on("newMessage", (newMessage) => {
+      if (newMessage.chatId === chatIdFromUrl) {
+        setMessages((prev) => [...prev, newMessage]);
+      }
+    });
 
     return () => {
-      socket.off("newMessage");
+      socket?.off("newMessage");
     };
-  }, []);
-
-  useEffect(() => {
-  // Request notification permission on component mount
-  if (Notification.permission !== "granted") {
-    Notification.requestPermission();
-  }
-
-  socket.on("newMessage", (newMessage) => {
-    if (newMessage.chatId === chatId) {
-      setMessages((prev) => [...prev, newMessage]);
-
-      // Show desktop notification
-      if (Notification.permission === "granted" && newMessage.senderId !== userId) {
-        new Notification(`New message from ${newMessage.senderUsername}`, {
-          body: newMessage.messageText,
-          icon: "/chat-icon.png",  // optional: your app icon url
-        });
-      }
-    }
-  });
-
-  return () => {
-    socket.off("newMessage");
-  };
-}, [chatId, userId]);
+  }, [socket, userId]);
 
   const handleSend = () => {
-    if (!messageText.trim()) {
-      alert("Please enter a message");
-      return;
-    }
-
-    if (!chatId) {
-      alert("Chat ID is missing");
-      return;
-    }
+    if (!messageText.trim()) return alert("Please enter a message");
+    if (!chatId) return alert("Chat ID is missing");
 
     socket.emit("sendMessage", {
       chatId,
       messageText,
-       senderId: userId,  
+      senderId: userId,
     });
 
     setMessageText("");
@@ -92,7 +64,8 @@ const ChatPage = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>Chat</h2>
+      <h2>Chat with {chatPartner || "..."}</h2>
+
       {messages.length === 0 ? (
         <p>No messages yet.</p>
       ) : (
@@ -117,11 +90,17 @@ const ChatPage = () => {
           </div>
         ))
       )}
+
       <input
         type="text"
         value={messageText}
         onChange={(e) => setMessageText(e.target.value)}
         placeholder="Type your message..."
+        onKeyDown={(e) => {
+    if (e.key === "Enter" && messageText.trim() !== "") {
+      handleSend();
+    }
+  }}
       />
       <button onClick={handleSend}>Send Message</button>
     </div>
