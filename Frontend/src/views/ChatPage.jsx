@@ -10,6 +10,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [chatId, setChatId] = useState("");
   const [messageText, setMessageText] = useState("");
+  
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
