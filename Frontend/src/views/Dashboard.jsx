@@ -77,6 +77,24 @@ useEffect(() => {
   navigate(`/user/chat?chatId=${encodeURIComponent(chatId)}`);
 };
 
+const handleNewChatClick = async (phoneNo) => {
+  try {
+    const res = await axios.post("http://localhost:3000/api/chats/find-or-create", {
+      userId,
+      phoneNo
+    });
+
+    if (res.data && res.data.chatId) {
+      navigate(`/user/chat?chatId=${encodeURIComponent(res.data.chatId)}`);
+    } else {
+      console.error("No chatId returned from server");
+    }
+  } catch (err) {
+    console.error("Error starting chat:", err);
+  }
+};
+
+
  const handleLogout = () => {
     logout();              
     navigate("/auth/login");
@@ -147,15 +165,14 @@ useEffect(() => {
       fontSize: "16px",
     }}
   />
-  
-  {filteredContacts.length > 0 ? (
+{filteredContacts.length > 0 ? (
   filteredContacts.map((contact, idx) => (
     <div
       key={idx}
-      onClick={() => handleContactClick(contact.chatId)}
+      onClick={() => handleNewChatClick(contact.phoneNo)} // ✅ send phoneNo
       style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
     >
-      <strong>{contact.phoneNo}</strong>  {/* contact is an object, show phoneNo */}
+      <strong>{contact.phoneNo}</strong>
     </div>
   ))
 ) : (

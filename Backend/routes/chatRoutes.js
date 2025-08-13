@@ -1,7 +1,11 @@
-// routes/chatRoutes.js
-const router = require("express").Router();
-const { getUserContacts } = require("../controllers/chatController");
+const express = require("express");
+const router = express.Router();
+const chatController = require("../controllers/chatController");
 
-router.get("/contacts/:userId", getUserContacts);
+// Get all chats for a user
+router.get("/contacts/:userId", chatController.getUserContacts);
+
+// Find or create a chat by phone number
+router.post("/find-or-create", chatController.findOrCreateChat);
 
 module.exports = router;
