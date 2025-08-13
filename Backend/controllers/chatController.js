@@ -12,15 +12,19 @@ exports.getUserContacts = async (req, res) => {
       .populate("receiverId", "phoneNo name");
 
     const contacts = chats.map(chat => {
-      const otherUser = chat.senderId._id.toString() === userId
-        ? chat.receiverId
-        : chat.senderId;
+      const isSender = chat.senderId._id.toString() === userId;
+  const otherUser = isSender ? chat.receiverId : chat.senderId;
+
 
       return {
-        chatId: chat._id.toString(), // keep chatId here for already existing chats
-        phoneNo: otherUser.phoneNo,
-        name: otherUser.name
-      };
+       
+        chatId: chat._id.toString(),
+    unreadMessages: isSender 
+      ? chat.unreadMessages.sender || 0
+      : chat.unreadMessages.receiver || 0,
+    phoneNo: otherUser.phoneNo,
+    name: otherUser.name
+  };
     });
 
     res.json(contacts);

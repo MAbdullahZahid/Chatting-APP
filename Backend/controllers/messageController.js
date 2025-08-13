@@ -23,8 +23,10 @@ exports.getMessagesByChatId = async (req, res) => {
       senderId: msg.senderId._id,
       senderName: msg.senderId.name,
       senderPhoneNo: msg.senderId.phoneNo,
+      isRead: msg.isRead,
       createdAt: msg.createdAt,
       updatedAt: msg.updatedAt
+      
     }));
 
     res.json(formattedMessages);

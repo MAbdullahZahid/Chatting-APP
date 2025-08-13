@@ -56,7 +56,7 @@ useEffect(() => {
   axios
     .get(`http://localhost:3000/api/chats/contacts/${userId}`)
     .then((res) => {
-       console.log("Backend raw response:", res.data);
+    
    
       if (Array.isArray(res.data)) {
         console.log("Conatcts: " , res.data)
@@ -71,6 +71,23 @@ useEffect(() => {
     });
 }, [userId]);
   
+useEffect(() => {
+  if (!socket) return;
+
+  socket.on("contactsUpdate", ({ chatId, unreadMessages }) => {
+    setContacts(prevContacts =>
+      prevContacts.map(contact =>
+        contact.chatId === chatId
+          ? { ...contact, unreadMessages }
+          : contact
+      )
+    );
+  });
+
+  return () => {
+    socket.off("contactsUpdate");
+  };
+}, [socket]);
 
  const handleContactClick = (chatId) => {
   console.log("ChatID", chatId)
@@ -169,7 +186,7 @@ const handleNewChatClick = async (phoneNo) => {
   filteredContacts.map((contact, idx) => (
     <div
       key={idx}
-      onClick={() => handleNewChatClick(contact.phoneNo)} // ✅ send phoneNo
+      onClick={() => handleNewChatClick(contact.phoneNo)}
       style={{ cursor: "pointer", padding: "5px", borderBottom: "1px solid #ccc" }}
     >
       <strong>{contact.phoneNo}</strong>
@@ -198,7 +215,8 @@ const handleNewChatClick = async (phoneNo) => {
     >
       <strong>{contact.name}</strong>
       <br />
-      <strong>{contact.phoneNo}</strong>  {/* display phone number */}
+      <strong>{contact.phoneNo}</strong>  
+      <p>{contact.unreadMessages}</p>
     </div>
   ))
 )}

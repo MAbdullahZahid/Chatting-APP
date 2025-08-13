@@ -55,6 +55,13 @@ const chatSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Message"
   },
+  unreadMessages: {
+    sender: { type: Number, default: 0 },
+    receiver: { type: Number, default: 0 }
+  }
+
+,
+
   chatTime: {
     type: Date,
     default: Date.now

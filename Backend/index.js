@@ -74,37 +74,58 @@ io.on("connection", (socket) => {
     }
   });
 
-  io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
 socket.on("markMessagesRead", async ({ chatId, userId }) => {
   try {
-    // Update all unread messages from the other user
+    if (!chatId || !userId) return;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) return;
+
+    // Mark all messages from the OTHER user as read
     await Message.updateMany(
       { chatId, senderId: { $ne: userId }, isRead: false },
       { $set: { isRead: true } }
     );
 
-    // Find who sent these messages
-    const messages = await Message.find({ chatId, senderId: { $ne: userId } }).limit(1);
-
-    if (messages.length > 0) {
-      const senderId = messages[0].senderId.toString();
-
-      // Find sender's socketId from connectedUsers
-      const senderSocket = connectedUsers.find(u => u.userId.toString() === senderId);
-
-      if (senderSocket) {
-        io.to(senderSocket.socketId).emit("messagesRead", { chatId });
-      }
+    // Reset unread count in Chat doc
+    if (String(userId) === String(chat.senderId)) {
+      chat.unreadMessages.sender = 0;
+    } else {
+      chat.unreadMessages.receiver = 0;
     }
+    await chat.save();
+    
+const currentSocket = connectedUsers.find(u => String(u.userId) === userId);
+if (currentSocket) {
+  io.to(currentSocket.socketId).emit("contactsUpdate", {
+    chatId: chat._id.toString(),
+    unreadMessages:
+      String(userId) === String(chat.senderId)
+        ? chat.unreadMessages.sender
+        : chat.unreadMessages.receiver
+  });
+}
+
+
+   
+    const otherUserId = String(userId) === String(chat.senderId)
+      ? String(chat.receiverId)
+      : String(chat.senderId);
+
+    // Find their socket connection
+    const otherSocket = connectedUsers.find(
+      u => String(u.userId) === otherUserId
+    );
+
+    if (otherSocket) {
+      io.to(otherSocket.socketId).emit("messagesRead", { chatId });
+    }
+
+    console.log(`Messages in chat ${chatId} marked as read by ${userId}`);
   } catch (err) {
     console.error("Error marking messages as read:", err);
   }
 });
-
-});
-
 
 
 socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
@@ -122,7 +143,7 @@ socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
       return;
     }
 
-    // Optional: Check sender is part of this chat
+    
     if (![chat.senderId.toString(), chat.receiverId.toString()].includes(senderId)) {
       socket.emit("error", { message: "Sender not part of this chat" });
       return;
@@ -135,10 +156,48 @@ socket.on("sendMessage", async ({ chatId, messageText, senderId }) => {
       messageText,
     });
 
-    // Update chat
-    chat.messageId = newMessage._id;
-    chat.chatTime = new Date();
-    await chat.save();
+   
+   
+  if (senderId === chat.senderId.toString()) {
+  chat.unreadMessages.receiver += 1; 
+} else {
+  chat.unreadMessages.sender += 1;   
+}
+
+chat.messageId = newMessage._id;
+chat.chatTime = new Date();
+await chat.save();
+
+    
+// After chat.save()
+const receiverId =
+  senderId === chat.senderId.toString()
+    ? chat.receiverId.toString()
+    : chat.senderId.toString();
+
+// Emit to receiver so their unread count updates
+const receiverSocket = connectedUsers.find(u => String(u.userId) === receiverId);
+if (receiverSocket) {
+  io.to(receiverSocket.socketId).emit("contactsUpdate", {
+    chatId: chat._id.toString(),
+    unreadMessages:
+      senderId === chat.senderId.toString()
+        ? chat.unreadMessages.receiver
+        : chat.unreadMessages.sender
+  });
+}
+
+// Emit to sender too (optional — if you want sender's list to reflect changes)
+const senderSocket = connectedUsers.find(u => String(u.userId) === senderId);
+if (senderSocket) {
+  io.to(senderSocket.socketId).emit("contactsUpdate", {
+    chatId: chat._id.toString(),
+    unreadMessages:
+      senderId === chat.senderId.toString()
+        ? chat.unreadMessages.sender
+        : chat.unreadMessages.receiver
+  });
+}
 
     // Get sender's username for notification
     const sender = await User.findById(senderId).select("username");

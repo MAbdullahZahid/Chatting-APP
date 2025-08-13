@@ -92,26 +92,7 @@ socket?.on("messagesRead", ({ chatId: updatedChatId }) => {
       {messages.length === 0 ? (
         <p>No messages yet.</p>
       ) : (
-        // messages.map((msg, idx) => (
-        //   <div
-        //     key={idx}
-        //     style={{
-        //       textAlign: msg.senderId === userId ? "right" : "left",
-        //       margin: "5px 0",
-        //     }}
-        //   >
-        //     <span
-        //       style={{
-        //         backgroundColor: msg.senderId === userId ? "#DCF8C6" : "#EAEAEA",
-        //         padding: "8px",
-        //         borderRadius: "5px",
-        //         display: "inline-block",
-        //       }}
-        //     >
-        //       {msg.messageText}
-        //     </span>
-        //   </div>
-        // ))
+       
         messages.map((msg, idx) => (
   <div
     key={idx}
