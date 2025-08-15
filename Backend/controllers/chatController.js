@@ -19,6 +19,7 @@ exports.getUserContacts = async (req, res) => {
       return {
        
         chatId: chat._id.toString(),
+         userId: otherUser._id.toString(),
     unreadMessages: isSender 
       ? chat.unreadMessages.sender || 0
       : chat.unreadMessages.receiver || 0,

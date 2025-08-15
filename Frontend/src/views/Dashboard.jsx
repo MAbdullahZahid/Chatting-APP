@@ -6,9 +6,6 @@ import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
   const { socket, userId, logout } = useAuth();
   const navigate = useNavigate();
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [messageText, setMessageText] = useState("");
-  const [messages, setMessages] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [filterText, setFilterText] = useState("");
@@ -20,24 +17,41 @@ const Dashboard = () => {
       )
     : [];
 
-  useEffect(() => {
-    if (!socket) return;
+  // Handle status updates
+ useEffect(() => {
+  if (!socket) return;
 
-    socket.on("userStatusUpdate", ({ userId, status }) => {
-      setContacts(prev =>
-        prev.map(contact =>
-          contact.userId === userId ? { ...contact, status } : contact
-        )
-      );
-    });
+  const handleStatusUpdate = ({ userId: contactUserId, status }) => {
+    console.log("Status update:", contactUserId, status);
 
-    socket.emit("requestAllUserStatuses");
+    setContacts(prev =>
+      prev.map(contact => {
+        // Normalize both IDs to strings for comparison
+        const id =
+          contact.userId?._id ||
+          contact.senderId?._id ||
+          contact.receiverId?._id ||
+          contact.userId ||
+          contact.senderId ||
+          contact.receiverId;
 
-    return () => {
-      socket.off("userStatusUpdate");
-    };
-  }, [socket]);
+        return id?.toString() === contactUserId?.toString()
+          ? { ...contact, status }
+          : contact;
+      })
+    );
+  };
 
+  socket?.on("userStatusUpdate", handleStatusUpdate);
+  socket?.emit("requestAllUserStatuses");
+
+  return () => {
+    socket?.off("userStatusUpdate", handleStatusUpdate);
+  };
+}, [socket]);
+
+
+  // Fetch all contacts
   useEffect(() => {
     if (!userId) return;
 
@@ -45,49 +59,56 @@ const Dashboard = () => {
       .then((res) => {
         if (Array.isArray(res.data)) {
           setAllContacts(res.data);
-        } else {
-          setAllContacts([]);
         }
       })
-      .catch((err) => {
-        console.error("Error fetching contacts:", err);
-        setAllContacts([]);
-      });
+      .catch(console.error);
   }, [userId]);
 
+  // Fetch chat contacts with status
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !socket) return;
 
     axios.get(`http://localhost:3000/api/chats/contacts/${userId}`)
       .then((res) => {
         if (Array.isArray(res.data)) {
-          setContacts(res.data);
-        } else {
-          setContacts([]);
+          const contactsWithStatus = res.data.map(contact => ({
+  ...contact,
+  status: "offline",
+  userId: contact.userId?._id 
+          || contact.senderId?._id 
+          || contact.receiverId?._id 
+          || contact.userId 
+          || contact.senderId 
+          || contact.receiverId
+}));
+
+          setContacts(contactsWithStatus);
+          
+          // Request status for each contact
+          contactsWithStatus.forEach(contact => {
+            if (contact.userId) {
+              socket?.emit("requestUserStatus", contact.userId);
+            }
+          });
         }
       })
-      .catch((err) => {
-        console.error("Error fetching contacts:", err);
-        setContacts([]);
-      });
-  }, [userId]);
+      .catch(console.error);
+  }, [socket, userId]);
   
+  // Handle unread messages updates
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("contactsUpdate", ({ chatId, unreadMessages }) => {
+    const handleContactsUpdate = ({ chatId, unreadMessages }) => {
       setContacts(prevContacts =>
         prevContacts.map(contact =>
-          contact.chatId === chatId
-            ? { ...contact, unreadMessages }
-            : contact
+          contact.chatId === chatId ? { ...contact, unreadMessages } : contact
         )
       );
-    });
-
-    return () => {
-      socket.off("contactsUpdate");
     };
+
+    socket?.on("contactsUpdate", handleContactsUpdate);
+    return () => socket?.off("contactsUpdate", handleContactsUpdate);
   }, [socket]);
 
   const handleContactClick = (chatId) => {
@@ -101,10 +122,8 @@ const Dashboard = () => {
         phoneNo
       });
 
-      if (res.data && res.data.chatId) {
+      if (res.data?.chatId) {
         navigate(`/user/chat?chatId=${encodeURIComponent(res.data.chatId)}`);
-      } else {
-        console.error("No chatId returned from server");
       }
     } catch (err) {
       console.error("Error starting chat:", err);
@@ -112,7 +131,7 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    if (socket) socket.off("userStatusUpdate");
+    if (socket) socket?.off("userStatusUpdate");
     logout();              
     navigate("/auth/login");
   };
@@ -188,9 +207,21 @@ const Dashboard = () => {
                 onClick={() => handleContactClick(contact.chatId)}
                 className="chat-item"
               >
-                <div className="chat-avatar">
+                <div className="chat-avatar" style={{ position: 'relative' }}>
                   <i className="fas fa-user"></i>
-                  {contact.status === "online" && <span className="online-badge"></span>}
+                  {contact.status === "online" && (
+                    <span style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: '#4ad504',
+                      border: '2px solid white',
+                      zIndex: 10
+                    }}></span>
+                  )}
                 </div>
                 <div className="chat-info">
                   <div className="chat-header">
@@ -404,17 +435,6 @@ const styles = `
   justify-content: center;
   margin-right: 12px;
   color: #555;
-}
-
-.online-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background-color: #4ad504;
-  border: 2px solid white;
 }
 
 .chat-info {

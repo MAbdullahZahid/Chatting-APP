@@ -4,9 +4,11 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { FiMic, FiSend, FiTrash2, FiChevronLeft } from "react-icons/fi";
 import { BsCheck2All } from "react-icons/bs";
+import { useNavigate } from "react-router-dom";
 
 const ChatPage = () => {
-  const { socket, userId, logout, navigate } = useAuth();
+    const { socket, userId, logout } = useAuth();
+    const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [chatId, setChatId] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -35,7 +37,7 @@ const ChatPage = () => {
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64Audio = reader.result.split(",")[1];
-          socket.emit("sendVoiceMessage", { chatId, senderId: userId, voiceMessage: base64Audio });
+          socket?.emit("sendVoiceMessage", { chatId, senderId: userId, voiceMessage: base64Audio });
         };
         reader.readAsDataURL(blob);
       };
@@ -73,7 +75,7 @@ const ChatPage = () => {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        socket.emit("deleteMessage", { messageId, chatId });
+        socket?.emit("deleteMessage", { messageId, chatId });
       }
     });
   };
@@ -98,14 +100,14 @@ const ChatPage = () => {
       }
     };
 
-    socket.on("newVoiceMessage", handleVM);
-    socket.on("messageDeleted", handleMessageDeleted);
-    socket.on("userStatusUpdate", handleStatusUpdate);
+    socket?.on("newVoiceMessage", handleVM);
+    socket?.on("messageDeleted", handleMessageDeleted);
+    socket?.on("userStatusUpdate", handleStatusUpdate);
 
     return () => {
-      socket.off("newVoiceMessage", handleVM);
-      socket.off("messageDeleted", handleMessageDeleted);
-      socket.off("userStatusUpdate", handleStatusUpdate);
+      socket?.off("newVoiceMessage", handleVM);
+      socket?.off("messageDeleted", handleMessageDeleted);
+      socket?.off("userStatusUpdate", handleStatusUpdate);
     };
   }, [socket, chatId, chatPartner]);
 
@@ -132,7 +134,7 @@ const ChatPage = () => {
                 userId: otherMsg.senderId
               });
               // Request status for this user
-              socket.emit("requestUserStatus", { userId: otherMsg.senderId });
+              socket?.emit("requestUserStatus", { userId: otherMsg.senderId });
             } else {
               setChatPartner({
                 name: res.data[0].senderName,
@@ -146,7 +148,7 @@ const ChatPage = () => {
         });
 
       // Mark messages as read
-      socket.emit("markMessagesRead", { chatId: chatIdFromUrl, userId });
+      socket?.emit("markMessagesRead", { chatId: chatIdFromUrl, userId });
     }
 
     // Socket listeners
@@ -166,12 +168,12 @@ const ChatPage = () => {
       }
     };
 
-    socket.on("newMessage", handleNewMessage);
-    socket.on("messagesRead", handleMessagesRead);
+    socket?.on("newMessage", handleNewMessage);
+    socket?.on("messagesRead", handleMessagesRead);
 
     return () => {
-      socket.off("newMessage", handleNewMessage);
-      socket.off("messagesRead", handleMessagesRead);
+      socket?.off("newMessage", handleNewMessage);
+      socket?.off("messagesRead", handleMessagesRead);
     };
   }, [socket, userId]);
 
@@ -180,7 +182,7 @@ const ChatPage = () => {
     if (!messageText.trim()) return;
     if (!chatId) return;
 
-    socket.emit("sendMessage", {
+    socket?.emit("sendMessage", {
       chatId,
       messageText,
       senderId: userId,
@@ -199,7 +201,7 @@ const ChatPage = () => {
     <div className="chat-container">
       {/* Chat header */}
       <div className="chat-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
+        <button className="back-button" onClick={() => navigate(`/user/dashboard`)}>
           <FiChevronLeft size={24} />
         </button>
         <div className="partner-info">

@@ -284,6 +284,33 @@ socket.on("sendVoiceMessage", async ({ chatId, senderId, voiceMessage }) => {
   }
 });
 
+ socket.on("requestUserStatus", async (userId) => {
+    try {
+      const user = await User.findById(userId).select("status");
+      if (user) {
+        socket.emit("userStatusUpdate", { 
+          userId, 
+          status: user.status || "offline" 
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user status:", error);
+    }
+  });
+
+  socket.on("requestAllUserStatuses", async () => {
+    try {
+      const users = await User.find({}).select("_id status");
+      users.forEach(user => {
+        socket.emit("userStatusUpdate", {
+          userId: user._id.toString(),
+          status: user.status || "offline"
+        });
+      });
+    } catch (error) {
+      console.error("Error fetching all user statuses:", error);
+    }
+  });
 
 socket.on("deleteMessage", async ({ messageId, chatId }) => {
   try {
@@ -348,9 +375,6 @@ socket.on("deleteMessage", async ({ messageId, chatId }) => {
 
 
 });
-
-
-
 
 
 server.listen(5000, () => {
